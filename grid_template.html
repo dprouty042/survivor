@@ -69,6 +69,19 @@ tbody tr:hover th{background:var(--bg)}
 .key-notch::after{content:"";position:absolute;top:0;right:0;border-style:solid;border-width:0 8px 8px 0;
   border-color:transparent var(--notch) transparent transparent}
 .foot{color:var(--mute);font-size:13px;max-width:80ch;margin-top:14px}
+h2{font-size:20px;margin:26px 0 6px}
+.note{color:var(--mute);font-size:14px;max-width:80ch;margin:0 0 10px}
+.tw{max-width:760px}.tw table{min-width:0;width:100%}tr.none td{color:var(--mute)}tr.none td b{font-weight:600}
+.tw th,.tw td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+.tw th{position:static;font-size:13px;color:var(--mute);font-weight:600}
+.tw th:first-child,.tw td:first-child{text-align:left}
+.tw tr:last-child td{border-bottom:0}
+.tw td.ev{font-weight:700}
+.evbar{display:inline-block;height:8px;border-radius:2px;background:var(--ink);opacity:.25;margin-left:8px;vertical-align:middle}
+td.used{background:var(--bye);color:var(--mute);font-size:12px}
+tbody th .hold{display:block;font-weight:400;font-size:12px;color:var(--mute)}
+tbody tr.gone th{color:var(--mute);text-decoration:line-through}
+@media (max-width:640px){.tw .opt{display:none}.tw th,.tw td{padding:6px 4px;font-size:14px}.tw th{white-space:normal;vertical-align:bottom}}@media (max-width:380px){.tw th,.tw td{padding:5px 3px;font-size:13px}}
 @media (max-width:640px){h1{font-size:24px}td.c{min-width:54px;height:44px}td.c .v{font-size:15px}}
 @media (prefers-reduced-motion:reduce){td.c{transition:none}}
 </style>
@@ -78,6 +91,14 @@ tbody tr:hover th{background:var(--bg)}
 <h1>Win probability grid</h1>
 <p class="lede" id="lede"></p>
 
+<section id="poolSec" hidden>
+  <h2>This week in your pool</h2>
+  <p class="note" id="poolNote"></p>
+  <div class="wrap tw"><table id="thisweek"></table></div>
+</section>
+
+<h2>Every remaining week</h2>
+
 <div class="controls">
   <div class="seg" role="group" aria-label="Show">
     <button type="button" data-show="p" aria-pressed="true">Win %</button>
@@ -85,11 +106,14 @@ tbody tr:hover th{background:var(--bg)}
   </div>
   <span class="thr"><label for="thr">Fade games below</label>
     <input id="thr" type="range" min="50" max="90" step="5" value="70"><output id="thrOut" for="thr">70%</output></span>
+  <span id="entryWrap" hidden><label for="entry">Entry</label>
+    <select id="entry"><option value="all">All live entries</option></select></span>
   <span><label for="sort">Sort by</label>
     <select id="sort">
       <option value="now">This week</option>
       <option value="best">Best remaining game</option>
       <option value="count">Games above the fade line</option>
+      <option value="hold" id="optHold" hidden>Entries still holding</option>
       <option value="team">Team A–Z</option>
     </select></span>
 </div>
@@ -109,7 +133,7 @@ tbody tr:hover th{background:var(--bg)}
 const DATA = /*__DATA__*/null;
 
 const $ = (s) => document.querySelector(s);
-const state = { show: "p", thr: 70, sort: "now" };
+const state = { show: "p", thr: 70, sort: "now", entry: "all" };
 
 // Colour ramp: clay below 50%, turf greens above. Separate stops for dark mode.
 const STOPS_LIGHT = [[0.20,[226,196,182]],[0.50,[240,238,228]],[0.65,[198,226,190]],[0.80,[112,176,128]],[0.95,[22,96,58]]];
@@ -145,6 +169,36 @@ function index(){
 }
 const BY = index();
 
+const E = DATA.entries;
+function usedWeek(entry, team){ return E && E.used[entry] ? E.used[entry][team] : undefined; }
+function holders(team){ return E ? E.alive.filter(i => usedWeek(String(i), team) === undefined).length : null; }
+
+function renderThisWeek(){
+  const rows = (DATA.thisweek || []).filter(r => r.p >= 0.5);
+  if (!rows.length) return;
+  $("#poolSec").hidden = false;
+  const hasEv = rows.some(r => r.ev !== null);
+  rows.sort((a,b) => hasEv ? (b.ev - a.ev) : (b.p - a.p));
+  const nAlive = E ? E.alive.length : null;
+  let h = "<tr><th>Favorite</th><th>Win %</th><th class='opt'>Spread</th><th>Pool picking</th><th>EV</th>"
+        + (E ? "<th>Your entries</th>" : "") + "</tr>";
+  for (const r of rows){
+    const at = r.neutral ? "n" : (r.home ? "vs" : "@");
+    const ev = r.ev === null ? "–" : r.ev.toFixed(2);
+    const pick = r.pick === null ? "–" : r.pick.toFixed(1) + "%";
+    const hold = E ? `<td>${r.holders ? r.holders + "/" + nAlive : "all used"}</td>` : "";
+    const none = E && r.holders === 0 ? "none" : "";
+    h += `<tr class="${none}"><td><b>${r.team}</b> ${at} ${r.opp}</td><td>${pct(r.p)}</td><td class="opt">${fmtSpread(r.spread)}</td>`
+       + `<td>${pick}</td><td class="ev">${ev}</td>${hold}</tr>`;
+  }
+  $("#thisweek").innerHTML = h;
+  $("#poolNote").textContent = (hasEv
+    ? "Favorites only. EV is what an entry is worth after this week if it picks that team, where 1.00 means unchanged. It rewards teams that are likely to win and that few others in your pool are on, because their upsets thin the field. It covers this week only and ignores saving teams for later. "
+    : "")
+    + `Pool picking = projected share of your DK pool on each team. Source: ${DATA.pick_src}.`
+    + (E ? " Your entries = how many of your live entries still have that team." : "");
+}
+
 function summary(team){
   const games = Object.values(BY[team]);
   const best = games.reduce((a,b) => (!a || b.p > a.p) ? b : a, null);
@@ -159,15 +213,19 @@ function render(){
   const S = Object.fromEntries(teams.map(t => [t, summary(t)]));
   if (state.sort === "now") teams.sort((a,b) => S[b].now - S[a].now);
   if (state.sort === "best") teams.sort((a,b) => (S[b].best?.p ?? 0) - (S[a].best?.p ?? 0));
+  if (state.sort === "hold") teams.sort((a,b) => (holders(b) ?? 0) - (holders(a) ?? 0) || (S[b].best?.p ?? 0) - (S[a].best?.p ?? 0));
   if (state.sort === "count") teams.sort((a,b) => S[b].count - S[a].count || (S[b].best?.p ?? 0) - (S[a].best?.p ?? 0));
 
   let h = "<thead><tr><th scope='col'>Team</th>";
   for (const w of weeks) h += `<th scope="col" class="${w === DATA.week ? "cur" : ""}">Wk ${w}</th>`;
   h += `<th scope="col">Best game</th><th scope="col">≥ ${state.thr}%</th></tr></thead><tbody>`;
   for (const t of teams){
-    h += `<tr><th scope="row">${t}</th>`;
+    const one = state.entry !== "all" ? usedWeek(state.entry, t) : undefined;
+    const holdTxt = E && state.entry === "all" ? `<span class="hold">${holders(t)}/${E.alive.length} entries</span>` : "";
+    h += `<tr class="${one !== undefined ? "gone" : ""}"><th scope="row">${t}${holdTxt}</th>`;
     for (const w of weeks){
       const c = BY[t][w];
+      if (one !== undefined){ h += `<td class="used">${c ? `used wk ${one}` : "bye"}</td>`; continue; }
       if (!c){ h += `<td class="bye">bye</td>`; continue; }
       const rgb = colour(c.p), fg = textFor(rgb);
       const at = c.neutral ? "n" : (c.home ? "vs" : "@");
@@ -200,6 +258,12 @@ function init(){
   }));
   $("#thr").addEventListener("input", (e) => { state.thr = +e.target.value; $("#thrOut").textContent = state.thr + "%"; render(); });
   $("#sort").addEventListener("change", (e) => { state.sort = e.target.value; render(); });
+  if (E){
+    $("#entryWrap").hidden = false; $("#optHold").hidden = false;
+    for (const i of E.alive){ const o = document.createElement("option"); o.value = String(i); o.textContent = i; $("#entry").appendChild(o); }
+    $("#entry").addEventListener("change", (e) => { state.entry = e.target.value; render(); });
+  }
+  renderThisWeek();
   if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { init.ramp?.(); render(); });
   render();
 }

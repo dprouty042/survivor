@@ -10,6 +10,7 @@ import json
 import os
 import pandas as pd
 import common
+import pool
 from common import current_week, devig_home, market_ratings, preseason_ratings, wp_from_spread
 
 TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "grid_template.html")
@@ -40,9 +41,29 @@ def grid_data(games):
                           "p": round(float(p), 4), "spread": None if sp is None else round(float(sp), 1),
                           "src": src, "kick": g.kickoff_et.strftime("%a %m/%d %I:%M %p")})
     weeks = sorted({c["week"] for c in cells})
+
+    # ---- pool layer: your entries, projected DK pick %, this-week EV
+    alive, used = pool.load_entries()
+    this = [c for c in cells if c["week"] == week]
+    wp = {c["team"]: c["p"] for c in this}
+    pairs = sorted({tuple(sorted((c["team"], c["opp"]))) for c in this})
+    pct, pct_src = pool.projected_pick_pct(week, sorted(wp))
+    ev = pool.pick_ev(pairs, wp, pct) if pct else {}
+    rows = []
+    for c in this:
+        t = c["team"]
+        holders = None if alive is None else sum(1 for i in alive if t not in used[i])
+        rows.append({"team": t, "opp": c["opp"], "home": c["home"], "neutral": c["neutral"],
+                     "p": c["p"], "spread": c["spread"], "kick": c["kick"],
+                     "pick": round(pct.get(t, 0.0), 1) if pct else None,
+                     "ev": round(ev[t], 3) if ev else None, "holders": holders})
+    entries = None
+    if alive is not None:
+        entries = {"alive": [str(i) for i in alive],
+                   "used": {str(i): used[i] for i in alive}}
     return {"built": now.strftime("%a %b %d, %I:%M %p ET"), "week": week, "weeks": weeks,
             "teams": sorted(ratings), "ratings": {t: round(r, 2) for t, r in ratings.items()},
-            "cells": cells}
+            "cells": cells, "thisweek": rows, "pick_src": pct_src, "entries": entries}
 
 
 def build(games, out="docs/grid.html"):
