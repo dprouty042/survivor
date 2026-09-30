@@ -1,0 +1,51 @@
+name: survivor-data
+
+on:
+  schedule:
+    # Times are UTC. Each slot is listed at both its EDT and EST equivalent;
+    # run.py checks real Eastern time and ignores the wrong one.
+    - cron: "10 13,14 * * 2"   # Tue 9:10 AM ET   rankings + opening snapshot
+    - cron: "10 22,23 * * 3-5" # Wed/Thu/Fri 6:10 PM ET
+    - cron: "10 15,16 * * 6"   # Sat 11:10 AM ET
+    - cron: "40 15,16 * * 0"   # Sun 11:40 AM ET
+  workflow_dispatch:           # "Run workflow" button for an on-demand snapshot
+    inputs:
+      rebuild:
+        description: "Also rebuild the power rankings"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: survivor-data
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Run
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "${{ inputs.rebuild }}" = "true" ]; then
+              python run.py --force --rebuild
+            else
+              python run.py --force
+            fi
+          else
+            python run.py
+          fi
+      - name: Commit results
+        run: |
+          git config user.name "survivor-bot"
+          git config user.email "survivor-bot@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "Data update $(TZ=America/New_York date '+%a %b %d %I:%M %p ET')"
+          git push
