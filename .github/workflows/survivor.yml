@@ -25,12 +25,32 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"   # keep __pycache__ out of the commits
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r requirements.txt
+      - name: Install packages
+        run: pip install "pandas>=2.0" "numpy>=1.24"
+      - name: Find files
+        # Handles uploads that landed inside a subfolder: moves that
+        # folder's files to the top level (saved by the commit step), so
+        # later runs start clean. Prints the repo's files either way.
+        run: |
+          if [ ! -f run.py ]; then
+            found=$(find . -name run.py -not -path "./.git/*" | head -1)
+            if [ -z "$found" ]; then
+              echo "run.py is not anywhere in this repo. Files in the repo:"
+              find . -type f -not -path "./.git/*"
+              exit 1
+            fi
+            dir=$(dirname "$found")
+            echo "Moving files from $dir to the top level"
+            for f in "$dir"/*; do git mv "$f" .; done
+          fi
+          echo "Top-level files:"; ls
       - name: Run
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
