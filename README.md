@@ -2,7 +2,7 @@
 
 Runs on GitHub's servers on a schedule. Nothing runs on your computer.
 
-- Tuesday 9:10 AM ET: rebuilds power rankings from prior weeks' closing spreads, then takes the week's opening line snapshot.
+- Every run rebuilds the power rankings from all spreads through the current week (so they stay current), then logs lines. Tuesday 9:10 AM ET is the opening snapshot.
 - Wed/Thu/Fri 6:10 PM, Sat 11:10 AM, Sun 11:40 AM ET: logs current spreads and moneylines for unplayed games next to our ratings.
 - Rebuilds the dashboard page (docs/index.html) after each run; data is saved in data/.
 

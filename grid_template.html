@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Win probability grid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F5F1; --panel:#FFFFFF; --ink:#1B2520; --mute:#5F6A63; --line:#D9DED6; --focus:#2F6FB0;
+  --bye:#ECEEE8; --notch:#1B2520;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#111512; --panel:#171C18; --ink:#E4EAE5; --mute:#98A39B; --line:#2A322C; --focus:#7FB2E5;
+    --bye:#1B211D; --notch:#E4EAE5;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111512; --panel:#171C18; --ink:#E4EAE5; --mute:#98A39B; --line:#2A322C; --focus:#7FB2E5;
+  --bye:#1B211D; --notch:#E4EAE5;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.45 "IBM Plex Sans Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif;
+  font-variant-numeric:tabular-nums}
+main{max-width:1500px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:30px;line-height:1.1;font-weight:700;margin:0 0 6px;letter-spacing:-.01em}
+.lede{max-width:70ch;color:var(--mute);margin:0 0 16px}
+.controls{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center;margin:0 0 12px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+.seg button{font:inherit;border:0;background:transparent;color:var(--ink);padding:6px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+label{color:var(--mute)}
+select,input[type=range]{font:inherit;accent-color:var(--ink)}
+select{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px 6px}
+button:focus-visible,select:focus-visible,input:focus-visible,td:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+.thr{display:inline-flex;align-items:center;gap:8px}
+.thr output{min-width:3.2em;font-weight:600;color:var(--ink)}
+.wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel);max-width:100%}
+table{border-collapse:separate;border-spacing:0;min-width:100%}
+th,td{padding:0;text-align:center;white-space:nowrap}
+thead th{position:sticky;top:0;z-index:2;background:var(--panel);font-size:13px;font-weight:600;color:var(--mute);
+  padding:8px 4px;border-bottom:1px solid var(--line)}
+thead th.cur{color:var(--ink)}
+tbody th{position:sticky;left:0;z-index:1;background:var(--panel);text-align:left;padding:0 10px;font-weight:700;
+  font-size:15px;border-right:1px solid var(--line);min-width:64px}
+thead th:first-child{left:0;z-index:3;text-align:left;padding-left:10px}
+td.c{position:relative;min-width:62px;height:48px;border-right:1px solid var(--bg);border-bottom:1px solid var(--bg);
+  transition:opacity .15s}
+td.c .o{display:block;font-size:12px;opacity:.8;line-height:1.1;margin-top:5px}
+td.c .v{display:block;font-size:17px;font-weight:600;line-height:1.2}
+td.c.dim{opacity:.28}
+td.c.src-market::after,td.c.src-line::after{content:"";position:absolute;top:0;right:0;border-style:solid;
+  border-width:0 9px 9px 0;border-color:transparent var(--notch) transparent transparent;opacity:.75}
+td.bye{background:var(--bye);color:var(--mute);font-size:12px}
+td.sum{padding:0 12px;font-size:14px;border-left:1px solid var(--line);color:var(--ink)}
+td.sum b{font-size:16px}
+tbody tr:hover th{background:var(--bg)}
+.legend{display:flex;flex-wrap:wrap;gap:10px 26px;align-items:center;margin:14px 0 0;color:var(--mute);font-size:14px}
+.ramp{display:inline-flex;align-items:center;gap:8px}
+.ramp span.bar{display:inline-block;width:180px;height:12px;border-radius:3px}
+.key-notch{display:inline-block;position:relative;width:18px;height:14px;border:1px solid var(--line);vertical-align:-2px;margin-right:6px}
+.key-notch::after{content:"";position:absolute;top:0;right:0;border-style:solid;border-width:0 8px 8px 0;
+  border-color:transparent var(--notch) transparent transparent}
+.foot{color:var(--mute);font-size:13px;max-width:80ch;margin-top:14px}
+@media (max-width:640px){h1{font-size:24px}td.c{min-width:54px;height:44px}td.c .v{font-size:15px}}
+@media (prefers-reduced-motion:reduce){td.c{transition:none}}
+</style>
+</head>
+<body>
+<main>
+<h1>Win probability grid</h1>
+<p class="lede" id="lede"></p>
+
+<div class="controls">
+  <div class="seg" role="group" aria-label="Show">
+    <button type="button" data-show="p" aria-pressed="true">Win %</button>
+    <button type="button" data-show="spread" aria-pressed="false">Spread</button>
+  </div>
+  <span class="thr"><label for="thr">Fade games below</label>
+    <input id="thr" type="range" min="50" max="90" step="5" value="70"><output id="thrOut" for="thr">70%</output></span>
+  <span><label for="sort">Sort by</label>
+    <select id="sort">
+      <option value="now">This week</option>
+      <option value="best">Best remaining game</option>
+      <option value="count">Games above the fade line</option>
+      <option value="team">Team A–Z</option>
+    </select></span>
+</div>
+
+<div class="wrap"><table id="grid" aria-describedby="lede"></table></div>
+
+<div class="legend">
+  <span class="ramp"><span>20%</span><span class="bar" id="rampBar"></span><span>95%</span></span>
+  <span><span class="key-notch" aria-hidden="true"></span>Priced by the betting market (vig removed)</span>
+  <span>Others: our current power ratings</span>
+  <span>vs = home, @ = away, n = neutral site</span>
+</div>
+<p class="foot" id="foot"></p>
+</main>
+
+<script>
+const DATA = /*__DATA__*/null;
+
+const $ = (s) => document.querySelector(s);
+const state = { show: "p", thr: 70, sort: "now" };
+
+// Colour ramp: clay below 50%, turf greens above. Separate stops for dark mode.
+const STOPS_LIGHT = [[0.20,[226,196,182]],[0.50,[240,238,228]],[0.65,[198,226,190]],[0.80,[112,176,128]],[0.95,[22,96,58]]];
+const STOPS_DARK  = [[0.20,[92,56,48]],[0.50,[44,48,44]],[0.65,[48,86,58]],[0.80,[42,128,78]],[0.95,[120,210,150]]];
+function isDark(){
+  const t = document.documentElement.getAttribute("data-theme");
+  if (t) return t === "dark";
+  return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+function colour(p){
+  const S = isDark() ? STOPS_DARK : STOPS_LIGHT;
+  if (p <= S[0][0]) return S[0][1];
+  for (let i = 1; i < S.length; i++){
+    if (p <= S[i][0]){
+      const [p0,c0] = S[i-1], [p1,c1] = S[i], t = (p - p0) / (p1 - p0);
+      return c0.map((v,k) => Math.round(v + (c1[k]-v)*t));
+    }
+  }
+  return S[S.length-1][1];
+}
+function textFor(rgb){
+  const lum = (0.2126*rgb[0] + 0.7152*rgb[1] + 0.0722*rgb[2]) / 255;
+  return lum < 0.5 ? "#FFFFFF" : "#1B2520";
+}
+const pct = (p) => Math.round(p*100) + "%";
+const fmtSpread = (s) => s === null ? "–" : (s === 0 ? "PK" : (s > 0 ? "+" : "") + s.toFixed(1));
+
+function index(){
+  const byTeam = {};
+  for (const t of DATA.teams) byTeam[t] = {};
+  for (const c of DATA.cells) byTeam[c.team][c.week] = c;
+  return byTeam;
+}
+const BY = index();
+
+function summary(team){
+  const games = Object.values(BY[team]);
+  const best = games.reduce((a,b) => (!a || b.p > a.p) ? b : a, null);
+  const count = games.filter(g => g.p*100 >= state.thr).length;
+  const now = BY[team][DATA.week] ? BY[team][DATA.week].p : -1;
+  return { best, count, now };
+}
+
+function render(){
+  const weeks = DATA.weeks;
+  let teams = DATA.teams.slice();
+  const S = Object.fromEntries(teams.map(t => [t, summary(t)]));
+  if (state.sort === "now") teams.sort((a,b) => S[b].now - S[a].now);
+  if (state.sort === "best") teams.sort((a,b) => (S[b].best?.p ?? 0) - (S[a].best?.p ?? 0));
+  if (state.sort === "count") teams.sort((a,b) => S[b].count - S[a].count || (S[b].best?.p ?? 0) - (S[a].best?.p ?? 0));
+
+  let h = "<thead><tr><th scope='col'>Team</th>";
+  for (const w of weeks) h += `<th scope="col" class="${w === DATA.week ? "cur" : ""}">Wk ${w}</th>`;
+  h += `<th scope="col">Best game</th><th scope="col">≥ ${state.thr}%</th></tr></thead><tbody>`;
+  for (const t of teams){
+    h += `<tr><th scope="row">${t}</th>`;
+    for (const w of weeks){
+      const c = BY[t][w];
+      if (!c){ h += `<td class="bye">bye</td>`; continue; }
+      const rgb = colour(c.p), fg = textFor(rgb);
+      const at = c.neutral ? "n" : (c.home ? "vs" : "@");
+      const val = state.show === "p" ? pct(c.p) : fmtSpread(c.spread);
+      const dim = c.p*100 < state.thr ? " dim" : "";
+      const srcTxt = c.src === "market" ? "market moneyline, vig removed" : c.src === "line" ? "market spread" : "our power ratings";
+      const site = c.neutral ? ` at ${c.site || "a neutral site"}` : "";
+      const tip = `${t} ${c.home ? "vs" : "at"} ${c.opp}${site}, week ${w} (${c.kick} ET). Win ${pct(c.p)}, spread ${fmtSpread(c.spread)}. Source: ${srcTxt}.`;
+      h += `<td class="c src-${c.src}${dim}" tabindex="0" title="${tip}" aria-label="${tip}" style="background:rgb(${rgb});color:${fg}">`
+         + `<span class="o">${at} ${c.opp}</span><span class="v">${val}</span></td>`;
+    }
+    const b = S[t].best;
+    h += `<td class="sum">${b ? `<b>${pct(b.p)}</b> wk ${b.week}` : "–"}</td><td class="sum"><b>${S[t].count}</b></td></tr>`;
+  }
+  h += "</tbody>";
+  $("#grid").innerHTML = h;
+}
+
+function init(){
+  const nPriced = new Set(DATA.cells.filter(c => c.src !== "rating").map(c => c.week));
+  const pricedTxt = nPriced.size ? `Weeks ${[...nPriced].join(" and ")} use betting-market prices` : "No weeks have market prices yet";
+  $("#lede").textContent = `Each team's chance to win every remaining game. ${pricedTxt}; later weeks use our current power ratings, which update as new lines post. Built ${DATA.built}.`;
+  $("#foot").textContent = "Ratings are fit to every spread posted this season (recent weeks count more), anchored to preseason win totals, with 1.55 points of home field and none at neutral sites. Win % converts a spread using a standard deviation of 11.3 points, fit to 4,170 games. Future weeks can't see injuries that haven't happened yet, so treat them as estimates that get replaced once real lines post.";
+  const S = isDark() ? STOPS_DARK : STOPS_LIGHT;
+  $("#rampBar").style.background = `linear-gradient(90deg, ${S.map(([p,c]) => `rgb(${c}) ${Math.round((p-0.2)/0.75*100)}%`).join(",")})`;
+  document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+    state.show = b.dataset.show;
+    document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    render();
+  }));
+  $("#thr").addEventListener("input", (e) => { state.thr = +e.target.value; $("#thrOut").textContent = state.thr + "%"; render(); });
+  $("#sort").addEventListener("change", (e) => { state.sort = e.target.value; render(); });
+  if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { init.ramp?.(); render(); });
+  render();
+}
+if (!DATA || !DATA.cells || !DATA.cells.length){
+  document.querySelector("main").insertAdjacentHTML("beforeend", "<p>No upcoming games found. The grid rebuilds on the next scheduled run.</p>");
+} else { init(); }
+</script>
+</body>
+</html>

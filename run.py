@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 sys.path.insert(0, os.path.dirname(__file__))
 import common
 from common import ET, current_week, load_games
-import page, rankings, snapshot
+import grid, page, rankings, snapshot
 
 # (weekday Mon=0, hour, minute, name, rebuild rankings first)
 SLOTS = [
@@ -70,10 +70,10 @@ def main():
     import pandas as pd
     stale = (not os.path.exists("data/power_rankings.csv") or
              int(pd.read_csv("data/power_rankings.csv").built_for_week.iloc[0]) != week)
-    if rebuild or stale:
-        rankings.rebuild(games)
+    rankings.rebuild(games)  # every run: lines move all week, rankings should too
     snapshot.take(games, name)
     page.build()
+    grid.build(games)
     if not a.force:
         with open(DONE, "a") as f:
             f.write(key + "\n")

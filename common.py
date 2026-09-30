@@ -42,6 +42,9 @@ def load_games(source=GAMES_URL):
     g["home_team"] = g.home_team.replace(TO_OURS)
     g["away_team"] = g.away_team.replace(TO_OURS)
     g["kickoff_et"] = pd.to_datetime(g.gameday + " " + g.gametime).dt.tz_localize(ET)
+    # Neutral-site games (London, Brazil, Australia...) get no home-field
+    # points. Fixed Sept 30, 2026: before this, HFA was applied to every game.
+    g["hfa"] = np.where(g.location == "Neutral", 0.0, HFA)
     return g
 
 
@@ -65,7 +68,7 @@ def market_ratings(games, before_week, prior):
     rows, y, w = [], [], []
     for g in d.itertuples():
         r = np.zeros(len(teams)); r[idx[g.home_team]] = 1; r[idx[g.away_team]] = -1
-        rows.append(r); y.append(g.spread_line - HFA)
+        rows.append(r); y.append(g.spread_line - g.hfa)
         w.append(0.5 ** ((before_week - 1 - g.week) / HALF_LIFE_WEEKS))
     for t in teams:
         r = np.zeros(len(teams)); r[idx[t]] = 1
