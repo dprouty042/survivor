@@ -1,6 +1,6 @@
 team,sg_projected_pct
-DAL,42.7
-CIN,25.3
+DAL,42.5
+CIN,25.5
 HOU,14.8
 JAX,4.0
 DET,3.6
@@ -14,7 +14,6 @@ CHI,0.5
 PIT,0.4
 WSH,0.3
 BUF,0.1
-BAL,0.1
 LAR,0.1
 LV,0.1
 SEA,0.1
@@ -22,6 +21,7 @@ GB,0.1
 SF,0.1
 NYJ,0.1
 IND,0.1
+BAL,0.1
 NO,0.1
 LAC,0.1
 MIA,0.0
