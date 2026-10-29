@@ -21,3 +21,4 @@
 2026-w7-Sun post-inactives
 2026-w8-Tue open
 2026-w8-Wed injury report
+2026-w8-Thu pre-TNF
